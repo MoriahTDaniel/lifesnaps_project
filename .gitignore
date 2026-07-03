@@ -1,0 +1,10 @@
+# התעלמות מקבצי הדאטה הגדולים ומארכיון ה-Zip
+*.zip
+*.bson
+rais_anonymized/
+
+# התעלמות מקבצי מערכת וסביבות וירטואליות
+.ipynb_checkpoints/
+__pycache__/
+.env
+.venv/
