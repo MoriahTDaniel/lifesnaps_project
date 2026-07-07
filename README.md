@@ -32,18 +32,17 @@
 
 ### 2. העתקת הקוד למחשב שלכם
 העתיקו את שתי השורות הבאות אל תוך הטרמינל (אפשר להדביק בעזרת קליק ימני בעכבר), ולחצו על `Enter` אחרי כל שורה. 
-הפקודה הראשונה מורידה את הקוד שלנו, והשנייה מכניסה אתכם לתוך התיקייה:
+ העתיקו את הפקודות הבאות לטרמינל כדי להוריד את הקוד, ליצור את תיקיות העבודה ולהתקין את הספריות הנדרשות:
 
 ```bash
 git clone <https://github.com/MoriahTDaniel/lifesnaps_project.git>
 cd lifesnaps_project
-```
-
-##⚠️ הערה חשובה לפני שמתחילים: התקנת ספריות בתוך VS Code
-כדי שפנדס יוכל לשמור קבצים בפורמט Parquet וידע לקרוא BSON, חברות הצוות (ואת) תצטרכו להתקין 3 ספריות פשוטות בטרמינל של VS Code.
-העתיקו את השורה הבאה לטרמינל ולחצו Enter:
-
-```bash
+cd lifesnaps_project
+mkdir data 
+mkdir data/raw 
+mkdir notebooks 
+mkdir src 
+mkdir utils
 pip install pandas pymongo pyarrow
 ```
 
@@ -52,18 +51,18 @@ pip install pandas pymongo pyarrow
 כעת נריץ את סקריפט ההתקנה. הוא יוריד אוטומטית את קובץ הנתונים הגולמי ממאגר המידע המדעי Zenodo למחשב שלכם.
 העתיקו לטרמינל ולחצו Enter:
 ```bash
-python setup_environment.py
+python src/setup_environment.py
 ```
 
 הערה: יופיע לכם מד התקדמות באחוזים. ההורדה תיקח זמן (בהתאם לאינטרנט שלכם) – זה זמן מצוין להכין קפה!
-
+ודאו שקובץ הZIP נמצא בתקייה data/raw/
 
 ### 4. חיתוך וסידור הנתונים
 אחרי שההורדה הגיעה ל-100%, הריצו את סקריפט החיתוך.
 הקוד ירוץ על קובץ ה-9GB, יחלץ את המדדים הפיזיולוגיים החשובים (דופק, צעדים ו-HRV) וישמור אותם מחולקים לפי נבדקים בתוך תיקייה חדשה בשם processed_data_parquet.
 העתיקו לטרמינל ולחצו
 ```bash
-python import_data.py
+python src/import_data.py
 ```
 
 ### 5. וידוא תקינות
@@ -74,60 +73,25 @@ python import_data.py
 python data_summary.py
 ```
 זה קובץ שמסכם את הנתונים הקיימים.
-בראש ההרצה אתן אמורות לקבל את הפלט הבא. אם קיבלתן מספרים אחרים קרתה תקלה.
-```bash
+בראש ההרצה אתן אמורות לקבל את הפלט הבא. אם קיבלתן מספרים אחרים קרתה תקלה
 
-דוח אימות וסיכום נתונים לצוות
-==================================================
+🔒 אימות נתונים בצוות (Data Verification)
+ודאו שטביעות האצבע הדיגיטליות (MD5 Hashes) של הקבצים המרכזיים אצלכן זהות לערכים הבאים:
 
---- 1. קבצים פסיכולוגיים מרכזיים ---
-[V] קובץ: all_sema_emotions.parquet
-    - כמות שורות: 15,380
-    - טביעת אצבע דיגיטלית (Hash): 76f52913
-[V] קובץ: all_surveys.parquet
-    - כמות שורות: 935
-    - טביעת אצבע דיגיטלית (Hash): b680bee9
+all_sema_emotions.parquet -> Hash: 76f52913
 
---- 2. נתונים פיזיולוגיים (Fitbit) ---
-סה"כ תיקיות משתמשים (נבדקים): 71
-סה"כ שורות פיזיולוגיות שנשמרו: 71,284,346
+all_surveys.parquet -> Hash: b680bee9
 
-פירוט שורות לפי סוג מדד:
-    - AFIB_ECG_READINGS: 73 דגימות
-    - ALTITUDE: 81,022 דגימות
-    - BADGE: 902 דגימות
-    - CALORIES: 9,675,782 דגימות
-    - COMPUTED_TEMPERATURE: 3,568 דגימות
-    - DAILY_HEART_RATE_VARIABILITY_SUMMARY: 2,475 דגימות
-    - DAILY_SPO2: 1,274 דגימות
-    - DEMOGRAPHIC_VO2_MAX: 4,854 דגימות
-    - DEVICE_TEMPERATURE: 92,121 דגימות
-    - DISTANCE: 3,010,529 דגימות
-    - ESTIMATED_OXYGEN_VARIATION: 2,009,637 דגימות
-    - EXERCISE: 4,051 דגימות
-    - HEART_RATE: 48,720,040 דגימות
-    - HEART_RATE_VARIABILITY_DETAILS: 220,512 דגימות
-    - HEART_RATE_VARIABILITY_HISTOGRAM: 3,000 דגימות
-    - JOURNAL_ENTRIES: 118 דגימות
-    - LIGHTLY_ACTIVE_MINUTES: 7,203 דגימות
-    - MINDFULNESS_EDA_DATA_SESSIONS: 16,070 דגימות
-    - MINDFULNESS_GOALS: 30 דגימות
-    - MINDFULNESS_SESSIONS: 143 דגימות
-    - MODERATELY_ACTIVE_MINUTES: 7,203 דגימות
-    - PROFILE: 69 דגימות
-    - RESPIRATORY_RATE_SUMMARY: 3,000 דגימות
-    - RESTING_HEART_RATE: 12,362 דגימות
-    - SEDENTARY_MINUTES: 7,203 דגימות
-    - SLEEP: 4,141 דגימות
-    - STEPS: 3,010,529 דגימות
-    - STRESS_SCORE: 1,911 דגימות
-    - TIME_IN_HEART_RATE_ZONES: 4,876 דגימות
-    - VERY_ACTIVE_MINUTES: 7,203 דגימות
-    - WATER_LOGS: 207 דגימות
-    - WRIST_TEMPERATURE: 4,372,238 דגימות
+📂 מבנה הפרויקט
+src/: קבצי הפייתון של צינור הנתונים (Pipeline).
 
-==================================================
-```
+data/: תיקיית הנתונים (הגולמיים ב-raw/ והמעובדים ב-processed_parquet/).
+
+notebooks/: מחברות הניתוח והמחקר (.ipynb).
+
+utils/: כלי עזר, סיכומים ודיבאג.
+
+
 ### 🎉 סיימתם!
 מעכשיו, קבצי הנתונים (Parquet) הקלים והמהירים מחכים לכם בתיקיית processed_data_parquet, ואפשר להתחיל לחקור אותם בכיף.
 

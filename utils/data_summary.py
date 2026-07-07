@@ -2,7 +2,19 @@ import pandas as pd
 from pathlib import Path
 import hashlib
 
-OUTPUT_DIR = Path("processed_data_parquet")
+BASE_DIR = Path(__file__).resolve().parent.parent
+OUTPUT_DIR = BASE_DIR / "data" / "processed_parquet"
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+OUTPUT_DIR = BASE_DIR / "data" / "processed_parquet"
+
+# --- שורות הדיבאג שנוסיף ---
+print("--- דיבאג נתיבים ---")
+print(f"תיקיית הבסיס שזוהתה: {BASE_DIR}")
+print(f"הנתיב המלא שמחופש כעת: {OUTPUT_DIR}")
+print(f"האם התיקייה נמצאה בפועל? {OUTPUT_DIR.exists()}")
+print("--------------------\n")
 
 def calculate_file_hash(file_path):
     """מחשב טביעת אצבע דיגיטלית ייחודית לקובץ כדי לוודא זהות בין מחשבים"""

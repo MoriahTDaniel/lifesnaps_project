@@ -6,6 +6,7 @@ from pathlib import Path, PurePosixPath
 from zipfile import ZipFile
 from bson import decode_file_iter
 import json # חובה להוסיף בשביל לפענח נתונים מורכבים כמו שינה
+from pathlib import Path
 
 # =========================================================================
 # 1. הגדרות ונתיבים (Configuration)
@@ -13,8 +14,11 @@ import json # חובה להוסיף בשביל לפענח נתונים מורכ�
 # משתנה בסיס המאפשר מעבר קל לדיסק חיצוני בעתיד (פשוט משנים את ה-Path)
 DATA_BASE_PATH = Path(".") 
 
-LIFESNAPS_ZIP = DATA_BASE_PATH / "rais_anonymized.zip" 
-OUTPUT_DIR = DATA_BASE_PATH / "processed_data_parquet"
+
+# מוצא את תיקיית השורש של הפרויקט אוטומטית
+BASE_DIR = Path(__file__).resolve().parent.parent 
+LIFESNAPS_ZIP = BASE_DIR / "data" / "raw" / "rais_anonymized.zip"
+OUTPUT_DIR = BASE_DIR / "data" / "processed_parquet"
 
 # הקמת תיקיית היעד במידה ולא קיימת
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -220,10 +224,8 @@ if __name__ == "__main__":
         print(f"[X] שגיאה: הקובץ {LIFESNAPS_ZIP.name} לא נמצא בתיקייה!")
         print("    אנא הריצי קודם את setup_environment.py כדי להוריד אותו.")
     else:
-        # לטסט ראשוני: נריץ רק על מיליון השורות הראשונות כדי לראות שהכל עובד חלק.
-        # בשלב הבא, כשנרצה לפצל את כל ה-9GB, פשוט נמחק את ה-(max_documents=1000000) והוא ירוץ על הכל.
         #slice_and_save_fitbit_raw(max_documents=1000000)
-                
+                #לבדיקות
         slice_and_save_fitbit_raw()
         # חילוץ הפסיכולוגיה והרגש (ירוץ על הכל כי זה קובץ קטן)
         extract_psychology_data()

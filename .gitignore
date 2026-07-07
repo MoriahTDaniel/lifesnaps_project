@@ -3,6 +3,9 @@
 *.bson
 rais_anonymized/
 processed_data_parquet/
+processed_parquet/
+data/
+skipped_records_log.jsonl
 # התעלמות מקבצי מערכת וסביבות וירטואליות
 .ipynb_checkpoints/
 __pycache__/

@@ -3,7 +3,7 @@ from pathlib import Path
 from zipfile import ZipFile
 from bson import decode_file_iter
 
-LIFESNAPS_ZIP = Path("rais_anonymized.zip")
+LIFESNAPS_ZIP = Path("../data/raw/rais_anonymized.zip")
 
 def find_collection_file(archive: ZipFile, collection: str) -> str:
     from pathlib import PurePosixPath

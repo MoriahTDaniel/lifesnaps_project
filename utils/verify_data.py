@@ -2,8 +2,11 @@ import pandas as pd
 from pathlib import Path
 
 # נגדיר את נתיב התיקייה של הנבדק שמצאת (תשני את השם אם ה-ID המלא שונה)
-USER_DIR = Path("processed_data_parquet/user_621e2e8e67b776a24055b564")
 
+BASE_DIR = Path(__file__).resolve().parent.parent
+OUTPUT_DIR = BASE_DIR / "data" / "processed_parquet"
+USER_DIR = OUTPUT_DIR / "user_621e2e8e67b776a24055b564"  # החליפי את זה ל-ID של הנבדק שלך
+# (ב-verify_data.py, תוסיפי ל-OUTPUT_DIR את ה- / "user_621e2e8e67b776a24055b564")
 def verify_user_data():
     print(f"=== בודק נתונים עבור נבדק: {USER_DIR.name} ===\n")
     
