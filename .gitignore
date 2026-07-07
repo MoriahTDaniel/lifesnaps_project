@@ -2,7 +2,7 @@
 *.zip
 *.bson
 rais_anonymized/
-
+processed_data_parquet/
 # התעלמות מקבצי מערכת וסביבות וירטואליות
 .ipynb_checkpoints/
 __pycache__/
