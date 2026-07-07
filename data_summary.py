@@ -1,63 +1,67 @@
 import pandas as pd
 from pathlib import Path
+import hashlib
 
 OUTPUT_DIR = Path("processed_data_parquet")
 
+def calculate_file_hash(file_path):
+    """מחשב טביעת אצבע דיגיטלית ייחודית לקובץ כדי לוודא זהות בין מחשבים"""
+    if not file_path.exists():
+        return "קובץ חסר"
+    hasher = hashlib.md5()
+    with open(file_path, 'rb') as f:
+        buf = f.read(1024 * 1024) # קריאה בבלוקים של 1MB ליציבות
+        while len(buf) > 0:
+            hasher.update(buf)
+            buf = f.read(1024 * 1024)
+    return hasher.hexdigest()[:8] # לוקחים רק את 8 התווים הראשונים לנוחות
+
 def summarize_all_data():
     print("==================================================")
-    print("        דו\"ח סיכום מלא של הנתונים המעובדים        ")
+    print("        דו\"ח אימות וסיכום נתונים לצוות           ")
     print("==================================================\n")
     
     if not OUTPUT_DIR.exists():
-        print("[X] התיקייה המעובדת לא נמצאת. האם הרצת את תהליך העיבוד?")
+        print("[X] תיקיית הנתונים המעובדים לא קיימת!")
         return
 
-    # 1. סיכום נתונים פסיכולוגיים
-    print("--- 1. נתונים פסיכולוגיים ושאלוני EMA ---")
+    print("--- 1. קבצים פסיכולוגיים מרכזיים ---")
     psych_files = ["all_sema_emotions.parquet", "all_surveys.parquet"]
     for file_name in psych_files:
         file_path = OUTPUT_DIR / file_name
         if file_path.exists():
             df = pd.read_parquet(file_path)
-            # חיפוש עמודת מזהה המשתמש
-            id_col = 'new_id' if 'new_id' in df.columns else ('user_id' if 'user_id' in df.columns else None)
-            unique_users = df[id_col].nunique() if id_col else "לא ידוע"
-            
+            file_hash = calculate_file_hash(file_path)
             print(f"[V] קובץ: {file_name}")
-            print(f"    - סה\"כ שורות (תצפיות): {len(df):,}")
-            print(f"    - סה\"כ משתתפים שונים: {unique_users}")
+            print(f"    - כמות שורות: {len(df):,}")
+            print(f"    - טביעת אצבע דיגיטלית (Hash): {file_hash}")
         else:
             print(f"[X] קובץ {file_name} חסר!")
             
-    # 2. סיכום נתונים פיזיולוגיים
     print("\n--- 2. נתונים פיזיולוגיים (Fitbit) ---")
-    # חיפוש כל התיקיות שמתחילות ב-"user_"
     user_dirs = [d for d in OUTPUT_DIR.iterdir() if d.is_dir() and d.name.startswith("user_")]
-    print(f"סה\"כ משתתפים עם נתונים פיזיולוגיים: {len(user_dirs)}")
+    print(f"סה\"כ תיקיות משתמשים (נבדקים): {len(user_dirs)}")
     
     if user_dirs:
         metrics_summary = {}
         total_physio_rows = 0
         
-        print("\nסורק את תיקיות המשתמשים (זה עשוי לקחת כמה שניות)...")
         for user_dir in user_dirs:
             for parquet_file in user_dir.glob("*.parquet"):
                 metric_name = parquet_file.stem
                 df = pd.read_parquet(parquet_file)
                 rows = len(df)
                 total_physio_rows += rows
+                metrics_summary[metric_name] = metrics_summary.get(metric_name, 0) + rows
                 
-                if metric_name not in metrics_summary:
-                    metrics_summary[metric_name] = 0
-                metrics_summary[metric_name] += rows
-                
-        print(f"סה\"כ דגימות פיזיולוגיות שנשמרו מכל המשתתפים: {total_physio_rows:,}\n")
-        print("פירוט לפי סוג מדד:")
-        for metric, count in metrics_summary.items():
+        print(f"סה\"כ שורות פיזיולוגיות שנשמרו: {total_physio_rows:,}")
+        print("\nפירוט שורות לפי סוג מדד:")
+        for metric, count in sorted(metrics_summary.items()):
             print(f"    - {metric.upper()}: {count:,} דגימות")
             
     print("\n==================================================")
-    print("הבדיקה הסתיימה. זהו כל המידע שזמין כרגע במחשב שלך.")
+    print("הריצו דו\"ח זה במחשבים שלכן. אם כמות השורות וטביעות האצבע (Hash)")
+    print("זהות בין כל חברי הצוות - סימן שלכולם יש בדיוק אותו מידע!")
 
 if __name__ == "__main__":
     summarize_all_data()

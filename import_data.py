@@ -5,6 +5,7 @@ import numpy as np
 from pathlib import Path, PurePosixPath
 from zipfile import ZipFile
 from bson import decode_file_iter
+import json # חובה להוסיף בשביל לפענח נתונים מורכבים כמו שינה
 
 # =========================================================================
 # 1. הגדרות ונתיבים (Configuration)
@@ -68,83 +69,105 @@ def flush_buffer_to_parquet(buffer: list):
         else:
             group.to_parquet(file_path, index=False)
 
+import json
+import numpy as np
+import pandas as pd
+# נוודא שכל היבואים למעלה קיימים...
+
 def slice_and_save_fitbit_raw(max_documents: int = None):
     """
-    הפונקציה המרכזית: רצה על קובץ הפיטביט, מחלצת מדדים, ומפצלת אותם.
+    שואבת את כל מדדי הפיטביט ללא סינון, ושומרת שורות פגומות לקובץ לוג לביקורת.
     """
-    # המדדים הפיזיולוגיים החשובים ביותר לחקר תנודות במצב הרוח
-    TARGET_METRICS = {'heart_rate', 'steps', 'Heart Rate Variability Details'}
-    
     buffer = []
-    BUFFER_SIZE = 250000  # כתיבה לדיסק בכל צבירה של 250 אלף שורות (אופטימלי ל-RAM)
+    BUFFER_SIZE = 250000  
     docs_scanned = 0
     total_saved = 0
+    skipped_count = 0
     
-    print(f"[*] מתחיל סריקה ופיצול של קובץ הפיטביט...")
+    print(f"[*] מתחיל סריקה ופיצול של קובץ הפיטביט (שואב את הכל + כותב לוג)...")
     
-    for doc in iter_lifesnaps_documents("fitbit"):
-        docs_scanned += 1
+    # פותחים קובץ טקסט לשמירת השורות שדולגו
+    with open("skipped_records_log.jsonl", "w", encoding="utf-8") as log_file:
         
-        # הדפסת התקדמות בלייב בטרמינל
-        if docs_scanned % 500000 == 0:
-            print(f"   נסרקו {docs_scanned:,} שורות מהקובץ הגולמי... נשמרו בינתיים {total_saved:,} דגימות.")
+        for doc in iter_lifesnaps_documents("fitbit"):
+            docs_scanned += 1
             
-        doc_type = doc.get("type")
-        if doc_type not in TARGET_METRICS:
-            continue
+            # הדפסת התקדמות בלייב
+            if docs_scanned % 500000 == 0:
+                print(f"   נסרקו {docs_scanned:,} שורות... נשמרו בינתיים {total_saved:,} דגימות.")
+                
+            doc_type = doc.get("type")
             
-        user_id = str(doc.get('id', doc.get('user_id')))
-        data = doc.get('data', {})
-        
-        # שליפת חותמת הזמן בהתאם לפורמט המשתנה של המדדים
-        ts_str = data.get('dateTime') or data.get('timestamp') or data.get('recorded_time')
-        if not ts_str:
-            continue
+            # --- התיקון שלך: שמירת שורות ללא type ללוג ---
+            if not doc_type:
+                skipped_count += 1
+                # נשמור עד 50,000 שורות פגומות כדי לא לסתום את המחשב במקרה של הצפה
+                if skipped_count <= 50000:
+                    log_file.write(json.dumps(doc, default=str) + "\n")
+                continue 
+                
+            user_id = str(doc.get('id', doc.get('user_id')))
+            data = doc.get('data', {})
             
-        # חילוץ חכם של הערך המספרי הנקי ומדד הביטחון (Confidence)
-        clean_val = np.nan
-        confidence_val = 3 # ברירת מחדל לצעדים ו-HRV שאין להם קונפידנס מובנה
-        
-        if doc_type == 'heart_rate':
-            val_dict = data.get('value', {})
-            if isinstance(val_dict, dict):
-                clean_val = val_dict.get('bpm')
-                confidence_val = val_dict.get('confidence', 3)
+            # --- התיקון הקודם שלנו: הוספת startTime והצלת הנתונים הסטטיים ---
+            ts_str = data.get('dateTime') or data.get('timestamp') or data.get('recorded_time') or data.get('startTime')
+            if not ts_str:
+                ts_str = "UNDEFINED"
+                
+            # חילוץ גנרי שמתאים לכל המדדים
+            raw_value = data.get('value')
+            clean_val = np.nan
+            confidence_val = np.nan
+            
+            if doc_type == 'heart_rate' and isinstance(raw_value, dict):
+                clean_val = raw_value.get('bpm')
+                confidence_val = raw_value.get('confidence', 3)
+            elif doc_type == 'Heart Rate Variability Details':
+                clean_val = data.get('rmssd')
             else:
-                clean_val = data.get('value')
-        elif doc_type == 'steps':
-            clean_val = data.get('value')
-        elif doc_type == 'Heart Rate Variability Details':
-            clean_val = data.get('rmssd') # לוקחים את מדד ה-RMSSD הקלאסי של HRV
+                if isinstance(raw_value, (dict, list)):
+                    clean_val = json.dumps(raw_value)
+                else:
+                    clean_val = raw_value
 
-        # הוספה לבאפר הזמני
-        buffer.append({
-            'user_id': user_id,
-            'metric_type': doc_type,
-            'timestamp': ts_str, 
-            'value': float(clean_val) if clean_val is not None else np.nan,
-            'confidence': int(confidence_val)
-        })
-        total_saved += 1
-        
-        # אם הבאפר מלא, נשפוך אותו לדיסק וננקה את הזיכרון
-        if len(buffer) >= BUFFER_SIZE:
+            # פיצול חכם למספרים או טקסט
+            if isinstance(clean_val, str):
+                val_num = np.nan
+                val_text = clean_val
+            else:
+                try:
+                    val_num = float(clean_val) if clean_val is not None else np.nan
+                    val_text = None
+                except (ValueError, TypeError):
+                    val_num = np.nan
+                    val_text = str(clean_val)
+
+            buffer.append({
+                'user_id': user_id,
+                'metric_type': doc_type,
+                'timestamp': str(ts_str), 
+                'value_numeric': val_num,
+                'value_text': val_text,
+                'confidence': float(confidence_val) if pd.notna(confidence_val) else np.nan
+            })
+            total_saved += 1
+            
+            if len(buffer) >= BUFFER_SIZE:
+                flush_buffer_to_parquet(buffer)
+                buffer = []
+                
+            if max_documents and docs_scanned >= max_documents:
+                print(f"[!] הגענו למגבלת הטסט שהוגדרה ({max_documents:,} שורות). עוצר.")
+                break
+                
+        if buffer:
             flush_buffer_to_parquet(buffer)
-            buffer = []
             
-        # מנגנון הגנה לטסטים - עוצר אם הגדרנו מגבלה
-        if max_documents and docs_scanned >= max_documents:
-            print(f"[!] הגענו למגבלת הטסט שהוגדרה ({max_documents:,} שורות). עוצר.")
-            break
-            
-    # פריקה אחרונה של השאריות שנשארו בבאפר בסיום הלולאה
-    if buffer:
-        flush_buffer_to_parquet(buffer)
-        
     print(f"\n[V] הפיצול הסתיים בהצלחה!")
     print(f"    סה\"כ נסרקו מהמקור: {docs_scanned:,} שורות.")
-    print(f"    סה\"כ נשמרו ב-Parquet: {total_saved:,} שורות מדדים ממוקדים.")
-
+    print(f"    סה\"כ נשמרו ב-Parquet: {total_saved:,} שורות.")
+    if skipped_count > 0:
+        print(f"    [!] אזהרה: נמצאו {skipped_count:,} שורות ללא type. הן נשמרו לבדיקה בקובץ skipped_records_log.jsonl")
 
 def extract_psychology_data():
     """
@@ -199,7 +222,8 @@ if __name__ == "__main__":
     else:
         # לטסט ראשוני: נריץ רק על מיליון השורות הראשונות כדי לראות שהכל עובד חלק.
         # בשלב הבא, כשנרצה לפצל את כל ה-9GB, פשוט נמחק את ה-(max_documents=1000000) והוא ירוץ על הכל.
-        slice_and_save_fitbit_raw(max_documents=1000000)
+        #slice_and_save_fitbit_raw(max_documents=1000000)
                 
+        slice_and_save_fitbit_raw()
         # חילוץ הפסיכולוגיה והרגש (ירוץ על הכל כי זה קובץ קטן)
         extract_psychology_data()

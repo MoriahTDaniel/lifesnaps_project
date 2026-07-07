@@ -15,11 +15,17 @@ def verify_user_data():
     for file_path in USER_DIR.glob("*.parquet"):
         df = pd.read_parquet(file_path)
         
+    
         # המרת עמודת הזמן לתאריך כדי למצוא התחלה וסוף
-        df['timestamp'] = pd.to_datetime(df['timestamp'])
-        start_time = df['timestamp'].min().strftime('%Y-%m-%d %H:%M')
-        end_time = df['timestamp'].max().strftime('%Y-%m-%d %H:%M')
+        df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce')
+        valid_times = df['timestamp'].dropna() # מסננים זמנים ריקים (NaT)
         
+        if not valid_times.empty:
+            start_time = valid_times.min().strftime('%Y-%m-%d %H:%M')
+            end_time = valid_times.max().strftime('%Y-%m-%d %H:%M')
+        else:
+            start_time = "נתונים סטטיים (ללא זמן)"
+            end_time = "נתונים סטטיים (ללא זמן)"
         print(f"מדד: {file_path.stem.upper()}")
         print(f"  - כמות דגימות: {len(df):,}")
         print(f"  - תאריך התחלה: {start_time}")
