@@ -35,7 +35,7 @@
  העתיקו את הפקודות הבאות לטרמינל כדי להוריד את הקוד, ליצור את תיקיות העבודה ולהתקין את הספריות הנדרשות:
 
 ```bash
-git clone <https://github.com/MoriahTDaniel/lifesnaps_project.git>
+git clone https://github.com/MoriahTDaniel/lifesnaps_project.git
 cd lifesnaps_project
 cd lifesnaps_project
 mkdir data 
