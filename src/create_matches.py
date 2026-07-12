@@ -14,35 +14,56 @@ def create_emotion_physio_matches():
     df_sema = pd.read_parquet(sema_path)
     df_sema['timestamp'] = pd.to_datetime(df_sema['data.COMPLETED_TS'])
     
+    # --- התיקון הראשון: מסננים מראש דיווחים שאין להם זמן ---
+    df_sema = df_sema.dropna(subset=['timestamp'])
+    
+    # --- מנגנון זיהוי אוטומטי של שם עמודת מזהה הנבדק ---
+    if 'id' in df_sema.columns:
+        user_col = 'id'
+    elif 'user_id' in df_sema.columns:
+        user_col = 'user_id'
+    elif 'participant_id' in df_sema.columns:
+        user_col = 'participant_id'
+    else:
+        print("שגיאה: לא הצלחתי למצוא עמודת מזהה נבדק. העמודות הקיימות ב-SEMA הן:")
+        print(df_sema.columns.tolist())
+        return pd.DataFrame()
+        
+    print(f"הקוד זיהה שעמודת הנבדקים נקראת: '{user_col}'. מתחיל בעיבוד...")
+            
     # 2. נכין רשימה לתוצאות
     all_matches = []
     
     # 3. נסרוק כל נבדק בנפרד
-    for user_folder in (DATA_DIR / "user_data").glob("user_*"):
+    for user_folder in DATA_DIR.glob("user_*"):
+        if not user_folder.is_dir(): 
+            continue # נוודא שזו תיקייה ולא קובץ
+            
         user_id = user_folder.name.replace("user_", "")
         hr_file = user_folder / "heart_rate.parquet"
         
-        # סינון הרגשות של הנבדק הספציפי
-        user_sema = df_sema[df_sema['participant_id'] == user_id].sort_values('timestamp')
+        # סינון הרגשות של הנבדק הספציפי 
+        user_sema = df_sema[df_sema[user_col] == user_id].sort_values('timestamp')
         
         # בדיקת קיום נתונים
         if user_sema.empty:
-            print(f"נבדק {user_id}: לא נמצאו דיווחי רגש.")
             continue
             
         if not hr_file.exists():
-            print(f"נבדק {user_id}: לא נמצא קובץ דופק.")
             continue
             
         # טעינת ועיבוד דופק
         df_hr = pd.read_parquet(hr_file)
         df_hr['timestamp'] = pd.to_datetime(df_hr['timestamp'])
+        
+        # --- התיקון השני: מסננים מדדי דופק שאין להם זמן ---
+        df_hr = df_hr.dropna(subset=['timestamp'])
+        
         df_hr = df_hr.sort_values('timestamp')
         
-        # הדפסות לאבחון (רק אם את רוצה לוודא טווחים)
-        print(f"נבדק {user_id} | SEMA: {user_sema['timestamp'].min()} עד {user_sema['timestamp'].max()} | HR: {df_hr['timestamp'].min()} עד {df_hr['timestamp'].max()}")
         user_sema['timestamp'] = user_sema['timestamp'].dt.tz_localize(None)
         df_hr['timestamp'] = df_hr['timestamp'].dt.tz_localize(None)
+        
         # התאמה ב-30 דקות לפני
         matches = pd.merge_asof(
             user_sema, df_hr, 
@@ -59,6 +80,6 @@ if __name__ == "__main__":
     final_df = create_emotion_physio_matches()
     if not final_df.empty:
         final_df.to_parquet(DATA_DIR / "matched_emotion_physio.parquet")
-        print(f"הסתיימה בניית טבלת ההתאמות! נמצאו {len(final_df)} שורות.")
+        print(f"הסתיימה בניית טבלת ההתאמות! הקובץ נשמר ונמצאו {len(final_df)} שורות.")
     else:
-        print("לא נמצאו התאמות. בדקי את הטווחים (Dates) שהודפסו בטרמינל כדי לראות אם יש חפיפה.")
+        print("לא נמצאו התאמות. הנתונים לא חופפים בזמנים.")
